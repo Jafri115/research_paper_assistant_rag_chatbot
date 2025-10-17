@@ -30,14 +30,14 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
           
-          # Clone the HF Space repo
+          # Clone HF Space repo
           git clone https://huggingface.co/spaces/Wasifjafri/ml-research-assistant hf_space
           
-          # Sync changes from GitHub repo into the HF Space folder
-          rsync -av --delete --exclude '.git/' . hf_space/
+          # Sync from GitHub repo to HF Space, excluding itself + .git folder
+          rsync -av --delete --exclude '.git/' --exclude 'hf_space/' . hf_space/
           
-          # Commit and push back
           cd hf_space
           git add .
           git commit -m "Sync from GitHub $GITHUB_SHA" || echo "No changes to commit"
           git push https://$HF_TOKEN@huggingface.co/spaces/Wasifjafri/ml-research-assistant.git main
+
