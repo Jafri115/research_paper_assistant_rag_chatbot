@@ -39,5 +39,6 @@ jobs:
           cd hf_space
           git add .
           git commit -m "Sync from GitHub $GITHUB_SHA" || echo "No changes to commit"
-          git push https://$HF_TOKEN@huggingface.co/spaces/Wasifjafri/ml-research-assistant.git main
+          git push https://user:$HF_TOKEN@huggingface.co/spaces/Wasifjafri/ml-research-assistant.git main
+
 
