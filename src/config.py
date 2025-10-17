@@ -26,7 +26,7 @@ CROSS_ENCODER_MODEL = "cross-encoder/ms-marco-MiniLM-L-12-v2"
 # Override via env if needed
 HF_DATASET_REPO_ID = os.environ.get("HF_DATASET_REPO_ID", "Wasifjafri/research-paper-vdb")
 HF_DATASET_REPO_TYPE = os.environ.get("HF_DATASET_REPO_TYPE", "dataset")
-FAISS_INDEX_REMOTE_DIR = os.environ.get("FAISS_INDEX_REMOTE_DIR", "remote_faiss_index")
+FAISS_INDEX_REMOTE_DIR = os.environ.get("FAISS_INDEX_REMOTE_DIR", "faiss_index")
 FAISS_INDEX_FILES = (
 	os.environ.get("FAISS_INDEX_FAISS_FILENAME", "index.faiss"),
 	os.environ.get("FAISS_INDEX_META_FILENAME", "index.pkl"),
