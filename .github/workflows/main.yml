@@ -12,16 +12,24 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          lfs: true  # fetch Git LFS files too
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.9"
+          python-version: "3.11"
 
-      - name: Install huggingface_hub
+      - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install huggingface_hub
+
+      - name: Install Git LFS
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y git-lfs
+          git lfs install
 
       - name: Mirror sync to HF Space
         env:
@@ -31,14 +39,14 @@ jobs:
           git config --global user.name "GitHub Actions"
           
           # Clone HF Space repo
-          git clone https://huggingface.co/spaces/Wasifjafri/ml-research-assistant hf_space
+          git clone https://user:$HF_TOKEN@huggingface.co/spaces/Wasifjafri/ml-research-assistant hf_space
           
-          # Sync from GitHub repo to HF Space, excluding itself + .git folder
-          rsync -av --delete --exclude '.git/' --exclude 'hf_space/' . hf_space/
+          # Sync files except .git and workflow directory
+          rsync -av --delete --exclude '.git/' --exclude '.github/' --exclude 'hf_space/' . hf_space/
           
           cd hf_space
+          git lfs track "*.faiss" "*.pkl"
+          git add .gitattributes
           git add .
           git commit -m "Sync from GitHub $GITHUB_SHA" || echo "No changes to commit"
           git push https://user:$HF_TOKEN@huggingface.co/spaces/Wasifjafri/ml-research-assistant.git main
-
-
