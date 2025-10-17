@@ -1,0 +1,43 @@
+name: Sync to HF Space
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.9"
+
+      - name: Install huggingface_hub
+        run: |
+          python -m pip install --upgrade pip
+          pip install huggingface_hub
+
+      - name: Mirror sync to HF Space
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          
+          # Clone the HF Space repo
+          git clone https://huggingface.co/spaces/Wasifjafri/ml-research-assistant hf_space
+          
+          # Sync changes from GitHub repo into the HF Space folder
+          rsync -av --delete --exclude '.git/' . hf_space/
+          
+          # Commit and push back
+          cd hf_space
+          git add .
+          git commit -m "Sync from GitHub $GITHUB_SHA" || echo "No changes to commit"
+          git push https://$HF_TOKEN@huggingface.co/spaces/Wasifjafri/ml-research-assistant.git main
