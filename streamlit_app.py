@@ -248,6 +248,61 @@ st.markdown("""
         height: 8px;
     }
     
+    /* Thinking indicator animation */
+    .thinking {
+        display: flex;
+        align-items: center;
+        color: #a8a8a8 !important;
+        font-style: italic;
+        animation: thinking-pulse 2s ease-in-out infinite;
+    }
+    
+    .thinking::after {
+        content: "...";
+        animation: thinking-dots 1.5s steps(4, end) infinite;
+        margin-left: 4px;
+    }
+    
+    @keyframes thinking-pulse {
+        0%, 100% { opacity: 0.7; }
+        50% { opacity: 1; }
+    }
+    
+    @keyframes thinking-dots {
+        0%, 20% { content: ""; }
+        40% { content: "."; }
+        60% { content: ".."; }
+        80%, 100% { content: "..."; }
+    }
+    
+    /* Processing status indicators */
+    .status-indicator {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 12px;
+        background: rgba(16, 163, 127, 0.1);
+        border: 1px solid rgba(16, 163, 127, 0.3);
+        border-radius: 8px;
+        margin-bottom: 10px;
+        color: #a8e6cf;
+        font-size: 14px;
+    }
+    
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(16, 163, 127, 0.3);
+        border-top: 2px solid #10a37f;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+    
+    @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+    }
+    
     ::-webkit-scrollbar-track {
         background: rgba(255, 255, 255, 0.02);
     }
@@ -741,8 +796,19 @@ What interests you?"""
     
     return "I'm here to help with Machine Learning research! 😊 Ask me about any ML topics or papers."
 
-# Chat input
+# Chat input - Process new query first (before displaying messages)
 query = st.chat_input("💬 Ask me anything about ML research...")
+
+if query:
+    # Add message to session state immediately
+    st.session_state["messages"].append({
+        "query": query,
+        "answer": None,
+        "context": [],
+        "processing": True
+    })
+    # Force rerun to show the user message immediately
+    st.rerun()
 
 # Display chat history
 for i, msg in enumerate(st.session_state["messages"]):
@@ -767,18 +833,28 @@ for i, msg in enumerate(st.session_state["messages"]):
                         )
                         if idx < len(msg["context"]):
                             st.markdown("---")
-    else:
-        # Answer is being generated - show thinking indicator
+    elif msg.get("processing", False):
+        # Process this message now - show thinking indicator and generate response
         with st.chat_message("assistant", avatar="🤖"):
-            thinking_placeholder = st.empty()
-            thinking_placeholder.markdown('<p class="thinking">🔍 Searching research papers...</p>', unsafe_allow_html=True)
+            # Show immediate thinking indicator
+            status_container = st.container()
+            with status_container:
+                st.markdown(
+                    '<div class="status-indicator"><div class="spinner"></div>🔍 Searching research papers</div>', 
+                    unsafe_allow_html=True
+                )
             
-            # Check if casual conversation
+            # Process the response
             if is_casual_conversation(msg["query"]):
+                # Handle casual conversation
+                time.sleep(0.5)  # Brief pause for better UX
                 casual_response = get_casual_response(msg["query"])
                 
-                # Smooth streaming effect
+                # Clear status and show response
+                status_container.empty()
                 response_placeholder = st.empty()
+                
+                # Smooth streaming effect
                 full_response = ""
                 words = casual_response.split()
                 
@@ -787,19 +863,26 @@ for i, msg in enumerate(st.session_state["messages"]):
                     response_placeholder.markdown(full_response)
                     time.sleep(0.02)
                 
+                # Update session state
                 st.session_state["messages"][i]["answer"] = casual_response
+                st.session_state["messages"][i]["processing"] = False
                 st.rerun()
             
             else:
                 # Research question - full RAG pipeline
-                rag_chain, adv_retriever = build_chain()
-                
-                docs = []
-                answer_text = ""
-                error_occurred = False
-            
                 try:
+                    rag_chain, adv_retriever = build_chain()
+                    
+                    # Update status
+                    status_container.empty()
+                    with status_container:
+                        st.markdown(
+                            '<div class="status-indicator"><div class="spinner"></div>🧠 Analyzing documents</div>', 
+                            unsafe_allow_html=True
+                        )
+                    
                     docs = adv_retriever.get_relevant_documents(msg["query"])
+                    answer_text = ""
                     
                     if not docs:
                         answer_text = """I couldn't find any relevant research papers in the database that match your query.
@@ -812,8 +895,6 @@ for i, msg in enumerate(st.session_state["messages"]):
 
 The current database focuses on ArXiv ML papers, but may not cover all research areas comprehensively."""
                     else:
-                        thinking_placeholder.markdown('<p class="thinking">🧠 Analyzing documents...</p>', unsafe_allow_html=True)
-                        
                         # Check relevance
                         formatted_context = format_docs(docs)
                         relevance_check_chain = {"context": RunnablePassthrough(), "question": RunnablePassthrough()} | relevance_prompt | llm
@@ -834,66 +915,67 @@ The current database focuses on ArXiv ML papers, but may not cover all research 
 
 I can only provide answers based on the ArXiv papers in the database."""
                         else:
-                            # Generate answer with streaming
-                            thinking_placeholder.markdown('<p class="thinking">✍️ Generating response...</p>', unsafe_allow_html=True)
+                            # Update status for generation
+                            status_container.empty()
+                            with status_container:
+                                st.markdown(
+                                    '<div class="status-indicator"><div class="spinner"></div>✍️ Generating response</div>', 
+                                    unsafe_allow_html=True
+                                )
+                            
                             answer = rag_chain.invoke(msg["query"])
                             answer_text = answer.content if hasattr(answer, "content") else str(answer)
                     
+                    # Clear status and display response with streaming
+                    status_container.empty()
+                    
+                    # Stream response
+                    import re
+                    response_placeholder = st.empty()
+                    parts = re.split(r'(\n\n|(?<=[.!?])\s+)', answer_text)
+                    
+                    full_response = ""
+                    for part in parts:
+                        full_response += part
+                        response_placeholder.markdown(full_response)
+                        time.sleep(0.03)
+                    
+                    # Update session state
+                    st.session_state["messages"][i]["answer"] = answer_text
+                    st.session_state["messages"][i]["context"] = docs
+                    st.session_state["messages"][i]["processing"] = False
+                    
+                    # Show retrieved documents
+                    if docs:
+                        with st.expander(f"📄 View {len(docs)} Retrieved Documents", expanded=False):
+                            for idx, doc in enumerate(docs, 1):
+                                st.markdown(f"**📎 Document {idx}**")
+                                st.caption(_format_metadata(doc.metadata))
+                                st.text_area(
+                                    f"Content {idx}", 
+                                    doc.page_content[:800] + ("..." if len(doc.page_content) > 800 else ""),
+                                    height=150,
+                                    key=f"new_doc_{i}_{idx}",
+                                    disabled=True
+                                )
+                                if idx < len(docs):
+                                    st.markdown("---")
+                    
+                    st.rerun()
+                    
                 except Exception as e:
-                    error_occurred = True
+                    # Handle errors
+                    status_container.empty()
                     msg_err = str(e)
                     if "models/" in msg_err and "not found" in msg_err.lower():
                         answer_text = "⚠️ Selected model not found. Try a different model in the sidebar."
                     else:
                         answer_text = f"⚠️ An error occurred: {e}\n\nPlease try again or rebuild the index."
-                
-                # Clear thinking and display response with streaming
-                thinking_placeholder.empty()
-                
-                # Stream response
-                import re
-                response_placeholder = st.empty()
-                parts = re.split(r'(\n\n|(?<=[.!?])\s+)', answer_text)
-                
-                full_response = ""
-                for part in parts:
-                    full_response += part
-                    response_placeholder.markdown(full_response)
-                    time.sleep(0.03)
-                
-                # Update session state
-                st.session_state["messages"][i]["answer"] = answer_text
-                st.session_state["messages"][i]["context"] = docs
-                
-                # Show retrieved documents
-                if docs:
-                    with st.expander(f"📄 View {len(docs)} Retrieved Documents", expanded=False):
-                        for idx, doc in enumerate(docs, 1):
-                            st.markdown(f"**📎 Document {idx}**")
-                            st.caption(_format_metadata(doc.metadata))
-                            st.text_area(
-                                f"Content {idx}", 
-                                doc.page_content[:800] + ("..." if len(doc.page_content) > 800 else ""),
-                                height=150,
-                                key=f"new_doc_{i}_{idx}",
-                                disabled=True
-                            )
-                            if idx < len(docs):
-                                st.markdown("---")
-                
-                st.rerun()
-
-# Process new query
-if query:
-    # Add message to session state immediately
-    st.session_state["messages"].append({
-        "query": query,
-        "answer": None,
-        "context": []
-    })
-    
-    # Force rerun to show the user message immediately
-    st.rerun()
+                    
+                    st.error(answer_text)
+                    st.session_state["messages"][i]["answer"] = answer_text
+                    st.session_state["messages"][i]["processing"] = False
+                    st.rerun()
 
 # Footer with tips - only show if there are messages
 if len(st.session_state["messages"]) > 0:
