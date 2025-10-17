@@ -5,6 +5,7 @@ colorFrom: red
 colorTo: red
 sdk: docker
 sdk_version: "1.0.0"
+dockerfile: Dockerfile
 app_port: 8501
 tags:
   - streamlit
