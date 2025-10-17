@@ -3,7 +3,15 @@ import os
 # Ensure Streamlit and ML caches write to a writable location (e.g., on HF Spaces)
 os.environ["HOME"] = "/tmp"
 os.environ["STREAMLIT_BROWSER_GATHER_USAGE_STATS"] = "false"
-os.environ["STREAMLIT_GLOBAL_DATA_DIR"] = "/tmp/.streamlit"
+
+# Explicitly redirect all Streamlit-managed directories to /tmp to avoid permission errors
+_streamlit_base = "/tmp/.streamlit"
+os.environ["STREAMLIT_GLOBAL_DATA_DIR"] = _streamlit_base
+os.environ["STREAMLIT_DATA_DIR"] = os.path.join(_streamlit_base, "data")
+os.environ["STREAMLIT_CONFIG_DIR"] = _streamlit_base
+os.environ["STREAMLIT_CACHE_DIR"] = os.path.join(_streamlit_base, "cache")
+os.environ["STREAMLIT_HOME"] = "/tmp"
+
 os.environ["XDG_CACHE_HOME"] = "/tmp/.cache"
 os.environ["HF_HOME"] = "/tmp/hf"
 os.environ["TRANSFORMERS_CACHE"] = "/tmp/hf/transformers"
@@ -17,7 +25,10 @@ for _d in [
     os.environ["TRANSFORMERS_CACHE"],
     os.environ["SENTENCE_TRANSFORMERS_HOME"],
     os.environ["TORCH_HOME"],
-    os.environ.get("STREAMLIT_GLOBAL_DATA_DIR", "/tmp/.streamlit"),
+    os.environ.get("STREAMLIT_GLOBAL_DATA_DIR", _streamlit_base),
+    os.environ.get("STREAMLIT_DATA_DIR"),
+    os.environ.get("STREAMLIT_CACHE_DIR"),
+    os.environ.get("STREAMLIT_CONFIG_DIR"),
 ]:
     try:
         os.makedirs(_d, exist_ok=True)
@@ -454,8 +465,16 @@ if not rebuild:
     try:
         vectorstore = build_or_load_vectorstore([], force_rebuild=False)
     except Exception as e:
-        st.error("❌ Could not load the FAISS index from the configured dataset repo.")
-        st.info("💡 Check HF_DATASET_REPO_ID/FAISS_INDEX_REMOTE_DIR env vars and that the dataset has index.faiss/index.pkl.")
+        st.error(
+            "❌ Could not download or load the remote FAISS index from Hugging Face."
+        )
+        st.info(
+            "💡 Verify that your deployment can access the internet and that HF_DATASET_REPO_ID/FAISS_INDEX_REMOTE_DIR point to a repository containing index.faiss and index.pkl."
+        )
+        st.info(
+            "🔐 If the dataset is private, configure the HF_TOKEN secret so the app can authenticate with the Hugging Face Hub."
+        )
+        st.exception(e)
         st.stop()
 else:
     # Rebuild only when explicitly requested and a source dataset is configured
