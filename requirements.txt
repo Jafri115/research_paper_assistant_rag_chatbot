@@ -1,0 +1,53 @@
+absl-py==2.3.1
+accelerate==1.10.1
+aiohappyeyeballs==2.6.1
+aiohttp==3.12.15
+aiosignal==1.4.0
+altair==5.5.0
+annotated-types==0.7.0
+anyio==4.10.0
+argon2-cffi==25.1.0
+argon2-cffi-bindings==25.1.0
+arrow==1.3.0
+asttokens==3.0.0
+astunparse==1.6.3
+async-lru==2.0.5
+async-timeout==4.0.3
+attrs==25.3.0
+# Minimal requirements for the RAG chatbot
+# Pin only where needed; compatible with Python 3.11 on Windows
+
+# Core app
+streamlit==1.49.1
+python-dotenv==1.1.1
+
+# LangChain stack (aligned versions)
+langchain==0.3.27
+langchain-core==0.3.75
+langchain-community==0.3.29
+langchain-text-splitters==0.3.11
+langchain-groq==0.3.8
+langchain-huggingface==0.3.1
+langchain-google-genai==2.1.12
+langchain-anthropic==0.3.6
+
+# Vector store and NLP
+faiss-cpu==1.12.0
+sentence-transformers==5.1.0
+transformers==4.56.1
+
+# Data + utils
+pandas==2.3.2
+numpy==1.26.4
+requests==2.32.5
+datasets==3.2.0
+# langchain-huggingface>=0.3.1 requires huggingface-hub>=0.33.4
+huggingface_hub>=0.33.4
+
+# Optional semantic splitter (app gracefully falls back if missing)
+semantic-text-splitter==0.27.0
+
+# Dataset fetcher (legacy - now using Hugging Face datasets)
+# kagglehub==0.3.13
+
+
